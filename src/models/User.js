@@ -1,8 +1,8 @@
 const mongoose = require("mongoose");
 const validator = require("validator");
+const bcrypt = require("bcryptjs");
 
-// ============= USER API =================
-const User = mongoose.model("User", {
+const userSchema = new mongoose.Schema({
   name: { type: String, trim: true, required: true },
   age: {
     type: Number,
@@ -36,6 +36,17 @@ const User = mongoose.model("User", {
     },
   },
 });
+
+userSchema.pre("save", async function (next) {
+  if (this.isModified("password")) {
+    this.password = await bcrypt.hash(this.password, 8);
+  }
+
+  next();
+});
+
+// ============= USER API =================
+const User = mongoose.model("User", userSchema);
 
 // const user1 = new User({
 //   name: "Anna",
