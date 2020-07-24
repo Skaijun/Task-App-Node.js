@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const validator = require("validator");
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 const userSchema = new mongoose.Schema({
   name: { type: String, trim: true, required: true },
@@ -17,6 +18,7 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     trim: true,
+    unique: true,
     required: true,
     validate(value) {
       if (!validator.isEmail(value)) {
@@ -35,7 +37,35 @@ const userSchema = new mongoose.Schema({
       }
     },
   },
+  tokens: [
+    {
+      token: {
+        type: String,
+        required: true,
+      },
+    },
+  ],
 });
+
+userSchema.methods.generateAuthToken = async function () {
+  const user = this;
+  const token = jwt.sign({ _id: user._id.toString() }, "thisistoauthstring");
+  user.tokens = user.tokens.concat({ token });
+  await user.save();
+  return token;
+};
+
+userSchema.statics.findByLoginData = async (email, password) => {
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw new Error("Error! Wrong login data!");
+  }
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) {
+    throw new Error("Error! Wrong login data!");
+  }
+  return user;
+};
 
 userSchema.pre("save", async function (next) {
   if (this.isModified("password")) {
