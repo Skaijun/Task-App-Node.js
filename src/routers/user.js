@@ -1,11 +1,12 @@
 // -------- USERS --------
 const express = require("express");
 const User = require("../models/User");
+const auth = require("../middleware/auth");
 const router = express.Router();
 
 router.post("/users", async (req, res) => {
   const user = new User(req.body);
-  
+
   try {
     await user.save();
     const token = await user.generateAuthToken();
@@ -30,17 +31,37 @@ router.post("/users/login", async (req, res) => {
   }
 });
 
-router.get("/users", async (req, res) => {
+router.get("/users/me", auth, async (req, res) => {
+  res.send(req.user);
+
+  // try {
+  //   const users = await User.find({});
+  //   res.send(users);
+  // } catch (e) {
+  //   res.status(500).send();
+  // }
+});
+
+router.post("/users/logout", auth, async (req, res) => {
   try {
-    const users = await User.find({});
-    res.send(users);
+    req.user.tokens = req.user.tokens.filter((token) => {
+      return token.token !== req.token;
+    });
+    await req.user.save();
+    res.send();
   } catch (e) {
     res.status(500).send();
   }
+});
 
-  //   User.find({})
-  //     .then((users) => res.send(users))
-  //     .catch(() => res.status(500).send());
+router.post("/users/logoutAll", auth, async (req, res) => {
+  try {
+    req.user.tokens = [];
+    await req.user.save();
+    res.send();
+  } catch (e) {
+    res.status(500).send();
+  }
 });
 
 router.get("/users/:id", async (req, res) => {
