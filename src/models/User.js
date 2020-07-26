@@ -2,49 +2,61 @@ const mongoose = require("mongoose");
 const validator = require("validator");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const Task = require("./Task");
 
-const userSchema = new mongoose.Schema({
-  name: { type: String, trim: true, required: true },
-  age: {
-    type: Number,
-    trim: true,
-    default: 0,
-    validate(value) {
-      if (value < 0) {
-        throw new Error("Age can not be negative");
-      }
-    },
-  },
-  email: {
-    type: String,
-    trim: true,
-    unique: true,
-    required: true,
-    validate(value) {
-      if (!validator.isEmail(value)) {
-        throw new Error();
-      }
-    },
-  },
-  password: {
-    type: String,
-    trim: true,
-    required: true,
-    minlength: 6,
-    validate(value) {
-      if (value.toLowerCase().includes("password")) {
-        throw new Error('Password can not include "password"');
-      }
-    },
-  },
-  tokens: [
-    {
-      token: {
-        type: String,
-        required: true,
+const userSchema = new mongoose.Schema(
+  {
+    name: { type: String, trim: true, required: true },
+    age: {
+      type: Number,
+      trim: true,
+      default: 0,
+      validate(value) {
+        if (value < 0) {
+          throw new Error("Age can not be negative");
+        }
       },
     },
-  ],
+    email: {
+      type: String,
+      trim: true,
+      unique: true,
+      required: true,
+      validate(value) {
+        if (!validator.isEmail(value)) {
+          throw new Error();
+        }
+      },
+    },
+    password: {
+      type: String,
+      trim: true,
+      required: true,
+      minlength: 6,
+      validate(value) {
+        if (value.toLowerCase().includes("password")) {
+          throw new Error('Password can not include "password"');
+        }
+      },
+    },
+    tokens: [
+      {
+        token: {
+          type: String,
+          required: true,
+        },
+      },
+    ],
+  },
+  {
+    timestamps: true,
+  }
+);
+
+userSchema.virtual("tasks", {
+  ref: "Task",
+  localField: "_id",
+  foreignField: "owner",
 });
 
 userSchema.methods.toJSON = function () {
@@ -79,7 +91,11 @@ userSchema.pre("save", async function (next) {
   if (this.isModified("password")) {
     this.password = await bcrypt.hash(this.password, 8);
   }
+  next();
+});
 
+userSchema.pre("remove", async function (next) {
+  await Task.deleteMany({ owner: this._id });
   next();
 });
 
